@@ -291,6 +291,14 @@ void Read_ini(ini::iniReader config,vector<map<uint32_t,map<uint32_t,vector<map<
                         u8 Fmsgrepcyc = (u8)config.ReadInt(strsection.c_str(),FRepCycle,1);
                         u8 Fmsglen = (u8)config.ReadInt(strsection.c_str(),FFrameLen,32);
                         FlexrayMsg = (((uint64_t)Fmsgslotid)<<48)+(((uint64_t)FmsgBasecyc)<<40)+((uint64_t)Fmsgrepcyc<<32)+(((uint64_t)Fmsglen));
+                        // 存放初始数据
+                        string data = config.ReadString(strsection.c_str(),"DATA","0,0,0,0,0,0,0,0");
+                        vector<string> datasplitlist;
+                        Stringsplit(data,",",datasplitlist);
+                        // 将数据写入结构体里的FData里
+                        for (int i=0;i<datasplitlist.size();i++){
+                            MsgList[FlexrayMsg].FData[i] = std::stoi(datasplitlist[i]);
+                        }
                         E2ECountSignals.clear();
                         // calc one msg has e2e count
                         for (int E2Eidx =0;E2Eidx<OneE2EMaxCount;E2Eidx++)
@@ -703,10 +711,6 @@ void PreTxFlexray(size_t* obj,const PLibFlexRay AData)
             u8 repCycle = (u8)((it->first>>32)&0xff);
             if(AData->FSlotId == Fslotid && AData->FCycleNumber%repCycle == baseCycle)
             {
-                // if(AData->FSlotId == 7 && AData->FCycleNumber%2 ==1)
-                // {
-                //     printf("11111");
-                // }
                 for(int e2eidx =0;e2eidx<it->second.e2e_list.size();e2eidx++)
                 {
                     s32 realLen = 3;
@@ -724,18 +728,15 @@ void PreTxFlexray(size_t* obj,const PLibFlexRay AData)
                         {
                             set_signal_value(&it->second.e2e_list[e2eidx][sgnidx],AData->FData);//,(int)AData->FActualPayloadLength);
                             E2EData[2] = (u8)it->second.e2e_list[e2eidx][sgnidx].value;
+                            
                             if(it->second.e2e_list[e2eidx][sgnidx].errorcounter == 1){
                                 it->second.e2e_list[e2eidx][sgnidx].value += 2;
                             }
                             it->second.e2e_list[e2eidx][sgnidx].value++;
-                            if(it->second.e2e_list[e2eidx][sgnidx].value>14)
+                            if(it->second.e2e_list[e2eidx][sgnidx].value>14){
                                 it->second.e2e_list[e2eidx][sgnidx].value = 0;
+                            }
                         } 
-                                       
-                // if(AData->FSlotId == 7 && AData->FCycleNumber%2 ==1)
-                // {
-                //     printf("11111");
-                // }
                         else{                            
                             s32 SignalLen = it->second.e2e_list[e2eidx][sgnidx].bitlen / 9 + 1;
                             get_signal_value(&it->second.e2e_list[e2eidx][sgnidx],AData->FData);//,(int)AData->FActualPayloadLength);
@@ -747,18 +748,13 @@ void PreTxFlexray(size_t* obj,const PLibFlexRay AData)
                             }
                         }
                     }
-                    if (AData->FData[0] == 0xFF){
+                    if (it->second.e2e_list[e2eidx][datalen-2].errorcrc == 1){
                         it->second.e2e_list[e2eidx][datalen-2].value = 0xFF;
                     }else{
                         it->second.e2e_list[e2eidx][datalen-2].value = crc8_calc(E2EData,realLen,0X11D);
                     }
                     set_signal_value(&it->second.e2e_list[e2eidx][datalen-2],AData->FData);//,(int)AData->FActualPayloadLength);
                 }
-            
-                // if(it->second.size()!=0)
-                // {
-                //     it->second[0][0].AMsg = *AData;
-                // }
             }
         }
 	}
@@ -848,6 +844,7 @@ void* receiveData(void* server_fd) {
             }else{
                 tsflexray_start_net(HandleList[AMsg.HWIdx],AMsg.AMsg.FIdxChn,1000);
             }
+            // 启停log
             if (AMsg.LogFlag == 0){
                 if (ISSaveBLF == 0){
                     ISSaveBLF = 1;
@@ -860,10 +857,32 @@ void* receiveData(void* server_fd) {
                 int Fslotid = (u16)((it->first>>48)&0xffff);
                 u8 baseCycle = (u8)((it->first>>40)&0xff);
                 u8 repCycle = (u8)((it->first>>32)&0xff);
-                // 检查ini里是否存在，再发送
                 if(AMsg.AMsg.FSlotId == Fslotid && AMsg.AMsg.FCycleNumber%repCycle == baseCycle)
                 {
                     if(it->second.e2e_list.size()!=0){
+                        for(int e2eidx =0;e2eidx<it->second.e2e_list.size();e2eidx++)
+                        {
+                            s32 datalen = it->second.e2e_list[e2eidx].size();
+                            for(int sgnidx =0;sgnidx<datalen - 2;sgnidx++)
+                            {
+                                if(it->second.e2e_list[e2eidx][sgnidx].is_cntr)
+                                {
+                                    // 获取信号值，判断是否为0xF，用做错误counter
+                                    u64 value = get_signal_value(&it->second.e2e_list[e2eidx][sgnidx],AMsg.AMsg.FData);//,(int)DLC_DATA_BYTE_CNT[AData->FDLC]);
+                                    if (value == 0xF){
+                                        it->second.e2e_list[e2eidx][sgnidx].errorcounter = 1;
+                                    }else{
+                                        it->second.e2e_list[e2eidx][sgnidx].errorcounter = 0;
+                                    }
+                                }    
+                            }
+                            u64 crc_value = get_signal_value(&it->second.e2e_list[e2eidx][datalen-2],AMsg.AMsg.FData);
+                            if (crc_value == 0xFF){
+                                it->second.e2e_list[e2eidx][datalen-2].errorcrc = 1;
+                            }else{
+                                it->second.e2e_list[e2eidx][datalen-2].errorcrc = 0;
+                            }
+                        }
                         it->second.e2e_list[0][0].AMsg = AMsg.AMsg;
                     }
                     break;
@@ -876,7 +895,6 @@ void* receiveData(void* server_fd) {
         {
             TLibCANFDHW AMsg = *((PLibCANFDHW)buffer);
             map<uint64_t,frame_data>::iterator it = MappingTable[AMsg.HWIdx][AMsg.AMsg.FIdxChn][1][0].begin();
-            vector<u8> signal_counter;
             for (;it!=MappingTable[AMsg.HWIdx][AMsg.AMsg.FIdxChn][1][0].end();it++)
             {
                 int canid = (u16)((it->first>>32)&0xffffffff);
@@ -886,7 +904,6 @@ void* receiveData(void* server_fd) {
                     // 循环遍历每一帧
                     for(int e2eidx =0;e2eidx<it->second.e2e_list.size();e2eidx++)
                     {
-                        s32 realLen = 3;
                         s32 datalen = it->second.e2e_list[e2eidx].size();
                         // 循环遍历每一个信号
                         for(int sgnidx =0;sgnidx<datalen - 2;sgnidx++)

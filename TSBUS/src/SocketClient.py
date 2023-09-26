@@ -40,7 +40,7 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # set the host and port number
 host = '127.0.0.1'
-port = 8003
+port = 8001
 
 # connection to host on the port.
 client_socket.bind((host, port))
@@ -51,27 +51,27 @@ while True:
 
     msg, addr = client_socket.recvfrom(1024)
     if(len(msg)>= 308):
-        # Msg = cast(msg, PLIBFlexrayHW).contents
-        # if(Msg.AMsg.FSlotId==55 and Msg.AMsg.FCycleNumber % 1 ==0):
-        #     Msg.AMsg.FData[11] &= 0xF0
-        #     Msg.AMsg.FData[11] |= 3
-        #     if a:
-        #         a = False
-        #         client_socket.sendto(Msg,(host, 8000))
-        # print(Msg)
-        pass
-    elif(len(msg) >= 88):
-        Msg = cast(msg, PLIBCANFDHW).contents
-        if a:
-            # [0XFF,2,3,4,5,6,7,8],第一个字节为0XFF表示为CRC错误，其他为正常
-            AMsg = TLIBCANFD(1,8,0x76,1,1,[1,2,3,4,5,6,7,8])
-            Msg.AMsg = AMsg
-            Msg.CyclicTime = 0 # 周期时间,0为发送一帧，-1为停止当前帧发送，-2为停止当前bus发送
-            Msg.ErrorCounter = 0 # counter是否错误,1为counter错误，0为正常
-            Msg.LogFlag = 0 # log启停,0为log启动，1为暂停
-            a = False
-            client_socket.sendto(Msg,(host, 8002))
-            print("111")
+        Msg = cast(msg, PLIBFlexrayHW).contents
+        if(Msg.AMsg.FSlotId==55 and Msg.AMsg.FCycleNumber % 1 ==0):
+            Msg.AMsg.FData[11] &= 0xF0
+            Msg.AMsg.FData[11] |= 3
+            Msg.StopNet = 0
+            Msg.LogFlag = 0
+            if a:
+                a = False
+                client_socket.sendto(Msg,(host, 8000))
+                print(111)
+    # elif(len(msg) >= 88):
+    #     Msg = cast(msg, PLIBCANFDHW).contents
+    #     if a:
+    #         # [0XFF,2,3,4,5,6,7,8],第一个字节为0XFF表示为CRC错误，其他为正常
+    #         AMsg = TLIBCANFD(0,8,0x127,1,1,[1,2,3,4,5,6,7,8])
+    #         Msg.AMsg = AMsg
+    #         Msg.CyclicTime = 0 # 周期时间,0为发送一帧，-1为停止当前帧发送，-2为停止当前bus发送
+    #         Msg.LogFlag = 0 # log启停,0为log启动，1为暂停
+    #         a = False
+    #         client_socket.sendto(Msg,(host, 8002))
+    #         print("111")
             
         # print(Msg)
     # Msg.FData[0] = 0xf1
