@@ -208,11 +208,6 @@ bool Read_ini_Config(ini::iniReader config)
         s32 ret = tscan_connect(ADeviceSerials[i].c_str(), &HWHandle);
         if (0 == ret)
         {
-            for (int i = 0; i < 12; i++)
-            {
-                tscan_config_canfd_by_baudrate(HWHandle, (APP_CHANNEL)i, 500, 2000, lfdtISOCAN, lfdmNormal, 1);
-                usleep(20000);
-            }
             HandleList.push_back(HWHandle);
             if (ISSaveBLF)
             {

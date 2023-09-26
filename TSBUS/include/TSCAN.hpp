@@ -41,6 +41,17 @@ s32 ini_canbus(size_t const HWHandle,const s32 canCountidx,map<uint64_t, frame_d
     map<uint64_t,frame_data>::iterator it = ChnList.begin();
     for (int idx=0;it != ChnList.end(); it++,idx++)
     {
+        if(canHWHandle != HWHandle)
+        {
+            for (int i = 0; i < 12; i++)
+            {
+                tscan_config_canfd_by_baudrate(HWHandle, (APP_CHANNEL)i, 500, 2000, lfdtISOCAN, lfdmNormal, 1);
+            }
+            usleep(20000);
+            canHWHandle = HWHandle;
+            tscan_register_pretx_event_canfd_whandle(HWHandle,ACallback);
+            // tscan_register_event_canfd_whandle(HWHandle,oncan);
+        }
         if (it->second.is_wake == 1){
             AMsg.FIdentifier = (it->first>>32)&0XFFFFFFFF;
             // //FlexrayMsg = (((uint64_t)canid)<<32)+(((uint64_t)canlen)<<24)+((uint64_t)cycletime<<8)+((isfd<<2))+((isbrs<<1))+((isstd));
@@ -107,11 +118,6 @@ s32 ini_canbus(size_t const HWHandle,const s32 canCountidx,map<uint64_t, frame_d
             }  
         }
     }
-    if(canHWHandle != HWHandle)
-    {
-        canHWHandle = HWHandle;
-        tscan_register_pretx_event_canfd_whandle(HWHandle,ACallback);
-        // tscan_register_event_canfd_whandle(HWHandle,oncan);
-    }
+   
     return 0;
 }
