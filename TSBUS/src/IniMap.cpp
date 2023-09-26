@@ -1114,7 +1114,7 @@ int main(int argc, char *argv[])
                     if (ISSaveBLF)
                     {
                         ISFILE = access(log_name.c_str(), F_OK);
-                        cout << ISFILE << endl;
+                        // cout << ISFILE << endl;
                         if (ISFILE == -1)
                         {
                             if (blf_BLHANDLEList.size()!=0){
