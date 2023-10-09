@@ -5,7 +5,10 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": [],
+            "args": [
+                "cfg.ini",
+                "aaa"
+            ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],

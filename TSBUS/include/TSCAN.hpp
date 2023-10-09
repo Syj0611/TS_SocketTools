@@ -41,83 +41,41 @@ s32 ini_canbus(size_t const HWHandle,const s32 canCountidx,map<uint64_t, frame_d
     map<uint64_t,frame_data>::iterator it = ChnList.begin();
     for (int idx=0;it != ChnList.end(); it++,idx++)
     {
-        if(canHWHandle != HWHandle)
-        {
-            for (int i = 0; i < 12; i++)
-            {
-                tscan_config_canfd_by_baudrate(HWHandle, (APP_CHANNEL)i, 500, 2000, lfdtISOCAN, lfdmNormal, 1);
+        AMsg.FIdentifier = (it->first>>32)&0XFFFFFFFF;
+        // //FlexrayMsg = (((uint64_t)canid)<<32)+(((uint64_t)canlen)<<24)+((uint64_t)cycletime<<8)+((isfd<<2))+((isbrs<<1))+((isstd));
+        s32 len = (it->first>>24)&0XFF;
+        AMsg.FDLC = get_reallen(len);
+        u8 isprecise = (it->first>>3)&0x1;
+        u8 isfd = (it->first>>2)&0X1;
+        u8 isbrs = (it->first>>1)&0X1;
+        u8 isstd = (it->first)&0X1;
+        u16 Cycletime = (it->first>>8)&0XFFFF;
+        AMsg.SetIsFD((isfd==1));
+        AMsg.SetStd(isstd==1);
+        AMsg.SetIsBRS(isbrs ==1);
+        AMsg.LoadData(it->second.FData);
+        u8 AISEst = (~isstd)&1;
+        AMsg.SetData(true);
+        // AMsg.FProperties &=0x7f; 
+        
+        if(Cycletime!=0){
+            if(isprecise==1){
+                u32 ret =  tscan_add_precise_cyclic_message(HWHandle,AMsg.FIdentifier,AMsg.FIdxChn,AISEst,(float)Cycletime,1000);
+                cout<<AMsg.FIdentifier<<"           "<<ret <<"           "<< Cycletime<<"         "<<(u32)AMsg.FIdxChn<<endl;
             }
-            usleep(20000);
-            canHWHandle = HWHandle;
-            tscan_register_pretx_event_canfd_whandle(HWHandle,ACallback);
-            // tscan_register_event_canfd_whandle(HWHandle,oncan);
-        }
-        if (it->second.is_wake == 1){
-            AMsg.FIdentifier = (it->first>>32)&0XFFFFFFFF;
-            // //FlexrayMsg = (((uint64_t)canid)<<32)+(((uint64_t)canlen)<<24)+((uint64_t)cycletime<<8)+((isfd<<2))+((isbrs<<1))+((isstd));
-            s32 len = (it->first>>24)&0XFF;
-            AMsg.FDLC = get_reallen(len);
-            u8 isfd = (it->first>>2)&0X1;
-            u8 isbrs = (it->first>>1)&0X1;
-            u8 isstd = (it->first)&0X1;
-            u8 isprecise = (it->first>>3)&0x1;
-            u16 Cycletime = (it->first>>8)&0XFFFF;
-            AMsg.SetIsFD((isfd==1));
-            AMsg.SetStd(isstd==1);
-            AMsg.SetIsBRS(isbrs ==1);
-            AMsg.LoadData(it->second.FData);
-            u8 AISEst = (~isstd)&1;
-            AMsg.SetData(true);
-            // AMsg.FProperties &=0x7f; 
-            
-            if(Cycletime!=0){
-                if(isprecise==1){
-                    u32 ret =  tscan_add_precise_cyclic_message(HWHandle,AMsg.FIdentifier,AMsg.FIdxChn,AISEst,(float)Cycletime,1000);
-                    cout<<AMsg.FIdentifier<<"           "<<ret <<"           "<< Cycletime<<endl;
-                }
-                tscan_add_cyclic_msg_canfd(HWHandle,&AMsg,(float)Cycletime);
-            } 
-            else{
-                tscan_transmit_canfd_async(HWHandle,&AMsg);
-            }  
+            tscan_add_cyclic_msg_canfd(HWHandle,&AMsg,(float)Cycletime);
+            usleep(1000);
         } 
+        else{
+            tscan_transmit_canfd_async(HWHandle,&AMsg);
+        }  
+    
     }
-    usleep(150000);
-    memset(&AMsg,0,sizeof(TLibCANFD));
-    AMsg.FIdxChn = canCountidx;
-    it = ChnList.begin();
-    for (int idx=0;it != ChnList.end(); it++,idx++)
+    if(canHWHandle != HWHandle)
     {
-        if (it->second.is_wake == 0){
-            AMsg.FIdentifier = (it->first>>32)&0XFFFFFFFF;
-            // //FlexrayMsg = (((uint64_t)canid)<<32)+(((uint64_t)canlen)<<24)+((uint64_t)cycletime<<8)+((isfd<<2))+((isbrs<<1))+((isstd));
-            s32 len = (it->first>>24)&0XFF;
-            AMsg.FDLC = get_reallen(len);
-            u8 isprecise = (it->first>>3)&0x1;
-            u8 isfd = (it->first>>2)&0X1;
-            u8 isbrs = (it->first>>1)&0X1;
-            u8 isstd = (it->first)&0X1;
-            u16 Cycletime = (it->first>>8)&0XFFFF;
-            AMsg.SetIsFD((isfd==1));
-            AMsg.SetStd(isstd==1);
-            AMsg.SetIsBRS(isbrs ==1);
-            AMsg.LoadData(it->second.FData);
-            u8 AISEst = (~isstd)&1;
-            AMsg.SetData(true);
-            // AMsg.FProperties &=0x7f; 
-            
-            if(Cycletime!=0){
-                if(isprecise==1){
-                    u32 ret =  tscan_add_precise_cyclic_message(HWHandle,AMsg.FIdentifier,AMsg.FIdxChn,AISEst,(float)Cycletime,1000);
-                    cout<<AMsg.FIdentifier<<"           "<<ret <<"           "<< Cycletime<<endl;
-                }
-                tscan_add_cyclic_msg_canfd(HWHandle,&AMsg,(float)Cycletime);
-            } 
-            else{
-                tscan_transmit_canfd_async(HWHandle,&AMsg);
-            }  
-        }
+        canHWHandle = HWHandle;
+        tscan_register_pretx_event_canfd_whandle(HWHandle,ACallback);
+        // tscan_register_event_canfd_whandle(HWHandle,oncan);
     }
-   
     return 0;
 }

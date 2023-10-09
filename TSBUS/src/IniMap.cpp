@@ -79,12 +79,14 @@ queue<TSaveMsg> HWMsgs;
 vector<map<uint32_t, map<uint32_t, vector<map<uint64_t, frame_data>>>>> MappingTable;
 
 map<uint64_t, vector<u8>> signalcounter;
+
 // map<uint32_t,map<uint64_t, vector<vector<signal_parse>>>> ChnList;
 
 ini::iniReader config;
 
 bool SocketIsConnect = false;
-
+// int ChnListSize = 0;
+vector<int> ChnListSize;
 u8 ISSaveBLF = 0;
 int ISFILE = 0;
 string log_name = "";
@@ -197,17 +199,24 @@ bool Open_ini(const char *fileName)
 
 bool Read_ini_Config(ini::iniReader config)
 {
-    string DeviceSerials = config.ReadString(FConfig, FDeviceSerial, "");
-    cout << DeviceSerials << endl;
+    // string DeviceSerials = config.ReadString(FConfig, FDeviceSerial, "");
+    // cout << DeviceSerials << endl;
     ISSaveBLF = (u8)config.ReadInt(FConfig, SaveLog, 0);
-    // 使用，识别每个设备序列号
-    Stringsplit(DeviceSerials, ",", ADeviceSerials);
+    // // 使用，识别每个设备序列号
+    // Stringsplit(DeviceSerials, ",", ADeviceSerials);
     for (int i = 0; i < ADeviceSerials.size(); i++)
     {
         u64 HWHandle;
         s32 ret = tscan_connect(ADeviceSerials[i].c_str(), &HWHandle);
         if (0 == ret)
         {
+            cout << "设备连接成功" << ret << endl;
+            for (int i = 0; i < ChnListSize.size(); i++)
+            {
+                tscan_config_canfd_by_baudrate(HWHandle, (APP_CHANNEL)ChnListSize[i], 500, 2000, lfdtISOCAN, lfdmNormal, 1);
+                // cout << "通道" << i+1 << "初始化成功" << endl;
+            }
+            usleep(100000);
             HandleList.push_back(HWHandle);
             if (ISSaveBLF)
             {
@@ -219,6 +228,7 @@ bool Read_ini_Config(ini::iniReader config)
         }
         else
         {
+            cout << "设备连接失败" << ret << endl;
             return false;
         }
     }
@@ -237,8 +247,13 @@ bool Read_ini_Config(ini::iniReader config)
 //  businfo  bustype  :  ChnList
 void Read_ini(ini::iniReader config, vector<map<uint32_t, map<uint32_t, vector<map<uint64_t, frame_data>>>>> &MappingTable) // u8** Framelen,TLibTrigger_def** Trigger_def)
 {
-    map<uint32_t, map<uint32_t, vector<map<uint64_t, frame_data>>>> CHNListInfo;
 
+    string DeviceSerials = config.ReadString(FConfig, FDeviceSerial, "");
+    cout << DeviceSerials << endl;
+    // 使用，识别每个设备序列号
+    Stringsplit(DeviceSerials, ",", ADeviceSerials);
+    
+    map<uint32_t, map<uint32_t, vector<map<uint64_t, frame_data>>>> CHNListInfo;
     map<uint32_t, vector<map<uint64_t, frame_data>>> BUSInfo;
     vector<map<uint64_t, frame_data>> ChnList;
     //  帧id等    e2elist
@@ -251,6 +266,7 @@ void Read_ini(ini::iniReader config, vector<map<uint32_t, map<uint32_t, vector<m
     signal_parse SignalMsg;
     string strsection;
     TLibFlexRay FRMsg;
+    
     memset(&FrameData, 0, sizeof(frame_data));
     memset(&FRMsg, 0, sizeof(FRMsg));
     memset(&FlexrayMsg, 0, sizeof(FlexrayMsg));
@@ -376,6 +392,10 @@ void Read_ini(ini::iniReader config, vector<map<uint32_t, map<uint32_t, vector<m
                             if (MsgList.size() > 0)
                             {
                                 ChnList.push_back(MsgList);
+                                if (ChnListSize.size()<12){
+                                    ChnListSize.push_back(i);
+                                    
+                                }
                                 MsgList.clear();
                             }
                             // break;
@@ -1068,12 +1088,12 @@ int main(int argc, char *argv[])
     if (Open_ini(argv[1]))
     {
         cout << "ini file open successed" << endl;
+        Read_ini(config, MappingTable);
         if (!Read_ini_Config(config))
         {
             cout << "hw open error" << endl;
             return -5;
         }
-        Read_ini(config, MappingTable);
         config_bus(MappingTable);
     }
     else
