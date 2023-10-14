@@ -202,6 +202,7 @@ bool Read_ini_Config(ini::iniReader config)
     // string DeviceSerials = config.ReadString(FConfig, FDeviceSerial, "");
     // cout << DeviceSerials << endl;
     ISSaveBLF = (u8)config.ReadInt(FConfig, SaveLog, 0);
+    
     // // 使用，识别每个设备序列号
     // Stringsplit(DeviceSerials, ",", ADeviceSerials);
     for (int i = 0; i < ADeviceSerials.size(); i++)
@@ -232,11 +233,7 @@ bool Read_ini_Config(ini::iniReader config)
             return false;
         }
     }
-    flexraysrcip = config.ReadString(FConfig, FlexraySRCIP, "127.0.0.1");
-    flexraysrcport = config.ReadInt(FConfig, FlexRaySRCPORT, 8000);
-    flexraydstip = config.ReadString(FConfig, FlexRayDSTIP, "127.0.0.1");
-    flexraydstport = config.ReadInt(FConfig, FlexRayDSTPORT, 8001);
-    E2ECale = (u8)config.ReadInt(FConfig, E2EConfig, 8001);
+    
     return true;
 }
 
@@ -503,6 +500,11 @@ void Read_ini(ini::iniReader config, vector<map<uint32_t, map<uint32_t, vector<m
         MappingTable.push_back(CHNListInfo);
         CHNListInfo.clear();
     }
+    flexraysrcip = config.ReadString(FConfig, FlexraySRCIP, "127.0.0.1");
+    flexraysrcport = config.ReadInt(FConfig, FlexRaySRCPORT, 8000);
+    flexraydstip = config.ReadString(FConfig, FlexRayDSTIP, "127.0.0.1");
+    flexraydstport = config.ReadInt(FConfig, FlexRayDSTPORT, 8001);
+    E2ECale = (u8)config.ReadInt(FConfig, E2EConfig, 8001);
 }
 
 #if defined(_WIN32)
@@ -1089,9 +1091,14 @@ int main(int argc, char *argv[])
     {
         cout << "ini file open successed" << endl;
         Read_ini(config, MappingTable);
+        if (!Create_SocketServer(flexraysrcip.c_str(), flexraysrcport, 1, false))
+        {
+            cout << "udp create error" << endl;
+            return -1;
+        }
         if (!Read_ini_Config(config))
         {
-            cout << "hw open error" << endl;
+            // cout << "hw open error" << endl;
             return -5;
         }
         config_bus(MappingTable);
@@ -1102,11 +1109,7 @@ int main(int argc, char *argv[])
         return -2;
     }
 
-    if (!Create_SocketServer(flexraysrcip.c_str(), flexraysrcport, 1, false))
-    {
-        cout << "udp create error" << endl;
-        return -1;
-    }
+    
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, receiveData, (void *)&SocketServer);
 
@@ -1179,5 +1182,21 @@ int main(int argc, char *argv[])
                 usleep(1);
         }
     }
+    //测试代码
+    // while (1)
+    // {
+    //    char a = (char) getchar();
+    //    if(a =='1')
+    //    {
+    //     TLibCANFD f0 ;
+    //     memset(&f0,0,sizeof(TLibCANFD));
+    //     f0.FIdentifier = 0x123;
+    //     f0.FDLC = 8;
+    //     f0.FFDProperties =0;
+    //     f0.FProperties =1;
+    //     tscan_transmit_canfd_async(HandleList[0],&f0);
+    //    }
+    // }
+    
     return 0;
 }
