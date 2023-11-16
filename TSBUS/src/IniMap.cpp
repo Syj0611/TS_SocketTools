@@ -86,7 +86,7 @@ ini::iniReader config;
 
 bool SocketIsConnect = false;
 // int ChnListSize = 0;
-vector<int> ChnListSize;
+map<int, int> ChnListSize;
 u8 ISSaveBLF = 0;
 int ISFILE = 0;
 string log_name = "";
@@ -115,6 +115,7 @@ int flexraysrcport = 0;
 string flexraydstip;
 int flexraydstport = 0;
 u8 E2ECale = 1;
+vector<string> Chn_AIntervalCnt;
 vector<string> ADeviceSerials;
 
 // u8 crc8_calc(u8* data,s32 len,u16 dataId)
@@ -202,21 +203,29 @@ bool Read_ini_Config(ini::iniReader config)
     // string DeviceSerials = config.ReadString(FConfig, FDeviceSerial, "");
     // cout << DeviceSerials << endl;
     ISSaveBLF = (u8)config.ReadInt(FConfig, SaveLog, 0);
-    
+
     // // 使用，识别每个设备序列号
     // Stringsplit(DeviceSerials, ",", ADeviceSerials);
     for (int i = 0; i < ADeviceSerials.size(); i++)
     {
         u64 HWHandle;
+        // time_t start_time = clock() ;
         s32 ret = tscan_connect(ADeviceSerials[i].c_str(), &HWHandle);
+        // cout <<"time "<<(clock() -  start_time )<< endl;
         if (0 == ret)
         {
             cout << "设备连接成功" << ret << endl;
-            for (int i = 0; i < ChnListSize.size(); i++)
+            map<int, int>::iterator it = ChnListSize.begin();
+            for (; it != ChnListSize.end(); it++)
             {
-                tscan_config_canfd_by_baudrate(HWHandle, (APP_CHANNEL)ChnListSize[i], 500, 2000, lfdtISOCAN, lfdmNormal, 1);
-                // cout << "通道" << i+1 << "初始化成功" << endl;
+                // cout<<int(it->second/10)<<endl;
+                tscan_configure_canfd_regs(HWHandle, (APP_CHANNEL)it->first, 500, 63, 16, 1, 15, 2000, 15, 4, 1, 3, lfdtISOCAN, lfdmNormal, 1, it->second / 10);
             }
+            // for (;it!=ChnListSize.end();it++)
+            // {
+            //     tscan_config_canfd_by_baudrate(HWHandle, (APP_CHANNEL)it->first, 500, 2000, lfdtISOCAN, lfdmNormal, 1);
+            // //     // cout << "通道" << i+1 << "初始化成功" << endl;
+            // }
             usleep(100000);
             HandleList.push_back(HWHandle);
             if (ISSaveBLF)
@@ -227,13 +236,53 @@ bool Read_ini_Config(ini::iniReader config)
                 blf_BLHANDLEList.push_back(blfhandle);
             }
         }
+        else if (ret == 59)
+        {
+            int connectCount = 10;
+            while (connectCount > 0)
+            {
+                ret = tscan_connect(ADeviceSerials[i].c_str(), &HWHandle);
+                if (0 == ret || ret == 5)
+                {
+                    cout << "设备连接成功" << ret << endl;
+                    map<int, int>::iterator it = ChnListSize.begin();
+                    for (; it != ChnListSize.end(); it++)
+                    {
+                        tscan_configure_canfd_regs(HWHandle, (APP_CHANNEL)it->first, 500, 63, 16, 1, 15, 2000, 15, 4, 1, 3, lfdtISOCAN, lfdmNormal, 1, it->second / 10);
+                    }
+                    // cout << "设备连接成功" << ret << endl;
+                    // for (int i = 0; i < ChnListSize.size(); i++)
+                    // {
+                    //     tscan_config_canfd_by_baudrate(HWHandle, (APP_CHANNEL)ChnListSize[i], 500, 2000, lfdtISOCAN, lfdmNormal, 1);
+                    //     // cout << "通道" << i+1 << "初始化成功" << endl;
+                    // }
+                    usleep(100000);
+                    HandleList.push_back(HWHandle);
+                    if (ISSaveBLF)
+                    {
+                        FILE *blfhandle;
+                        // tslog_write_start(get_time(ADeviceSerials[i].c_str()).c_str(),&blfhandle);
+                        tslog_write_start(log_name.c_str(), &blfhandle);
+                        blf_BLHANDLEList.push_back(blfhandle);
+                    }
+                    break;
+                }
+                usleep(20000);
+                connectCount--;
+            }
+            if (ret != 0 && ret != 5)
+            {
+                cout << "设备连接失败" << ret << endl;
+                return false;
+            }
+        }
         else
         {
             cout << "设备连接失败" << ret << endl;
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -249,7 +298,13 @@ void Read_ini(ini::iniReader config, vector<map<uint32_t, map<uint32_t, vector<m
     cout << DeviceSerials << endl;
     // 使用，识别每个设备序列号
     Stringsplit(DeviceSerials, ",", ADeviceSerials);
-    
+    string AIntervalCnt = config.ReadString(FConfig, "Chn_AIntervalCnt", "0,0,0,0,0,0,0,0,0,0,0,0");
+    Stringsplit(AIntervalCnt, ",", Chn_AIntervalCnt);
+    while (Chn_AIntervalCnt.size() < 12)
+    {
+        Chn_AIntervalCnt.push_back("0");
+    }
+
     map<uint32_t, map<uint32_t, vector<map<uint64_t, frame_data>>>> CHNListInfo;
     map<uint32_t, vector<map<uint64_t, frame_data>>> BUSInfo;
     vector<map<uint64_t, frame_data>> ChnList;
@@ -263,7 +318,7 @@ void Read_ini(ini::iniReader config, vector<map<uint32_t, map<uint32_t, vector<m
     signal_parse SignalMsg;
     string strsection;
     TLibFlexRay FRMsg;
-    
+
     memset(&FrameData, 0, sizeof(frame_data));
     memset(&FRMsg, 0, sizeof(FRMsg));
     memset(&FlexrayMsg, 0, sizeof(FlexrayMsg));
@@ -389,9 +444,10 @@ void Read_ini(ini::iniReader config, vector<map<uint32_t, map<uint32_t, vector<m
                             if (MsgList.size() > 0)
                             {
                                 ChnList.push_back(MsgList);
-                                if (ChnListSize.size()<12){
-                                    ChnListSize.push_back(i);
-                                    
+                                if (ChnListSize.size() < 12)
+                                {
+                                    // ChnListSize.push_back(i);
+                                    ChnListSize.insert(pair<int, int>(i, std::stoi(Chn_AIntervalCnt[i])));
                                 }
                                 MsgList.clear();
                             }
@@ -1080,13 +1136,13 @@ void config_bus(vector<map<uint32_t, map<uint32_t, vector<map<uint64_t, frame_da
 
 int main(int argc, char *argv[])
 {
-    log_name = argv[2];
     initialize_lib_tscan(true, false, false);
     if (argc < 3)
     {
         cout << "input error or log_name error" << endl;
         return -1;
     }
+    log_name = argv[2];
     if (Open_ini(argv[1]))
     {
         cout << "ini file open successed" << endl;
@@ -1109,7 +1165,6 @@ int main(int argc, char *argv[])
         return -2;
     }
 
-    
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, receiveData, (void *)&SocketServer);
 
@@ -1137,11 +1192,11 @@ int main(int argc, char *argv[])
                     if (ISSaveBLF)
                     {
                         ISFILE = access(log_name.c_str(), F_OK);
-                        // cout << ISFILE << endl;
                         if (ISFILE == -1)
                         {
-                            if (blf_BLHANDLEList.size()!=0){
-                                blf_BLHANDLEList.pop_back();   
+                            if (blf_BLHANDLEList.size() != 0)
+                            {
+                                blf_BLHANDLEList.pop_back();
                             }
                             FILE *blfhandle;
                             tslog_write_start(log_name.c_str(), &blfhandle);
@@ -1156,7 +1211,6 @@ int main(int argc, char *argv[])
             s32 ret = tsfifo_receive_canfd_msgs(HandleList[i], ACANFDMsg, &ACANFDMsgSize, 0xff, 1);
             if (ACANFDMsgSize != 0)
             {
-                // ACANFDMsg[0].SetErr(false);
                 ACANMSG.HWIdx = i;
                 ACANMSG.CyclcTime = 0;
                 ACANMSG.AMsg = ACANFDMsg[0];
@@ -1168,7 +1222,8 @@ int main(int argc, char *argv[])
                     // cout << ISFILE << endl;
                     if (ISFILE == -1)
                     {
-                        if (blf_BLHANDLEList.size()!=0){
+                        if (blf_BLHANDLEList.size() != 0)
+                        {
                             blf_BLHANDLEList.pop_back();
                         }
                         FILE *blfhandle;
@@ -1182,21 +1237,21 @@ int main(int argc, char *argv[])
                 usleep(1);
         }
     }
-    //测试代码
-    // while (1)
-    // {
-    //    char a = (char) getchar();
-    //    if(a =='1')
-    //    {
-    //     TLibCANFD f0 ;
-    //     memset(&f0,0,sizeof(TLibCANFD));
-    //     f0.FIdentifier = 0x123;
-    //     f0.FDLC = 8;
-    //     f0.FFDProperties =0;
-    //     f0.FProperties =1;
-    //     tscan_transmit_canfd_async(HandleList[0],&f0);
-    //    }
-    // }
-    
+    // 测试代码
+    //  while (1)
+    //  {
+    //     char a = (char) getchar();
+    //     if(a =='1')
+    //     {
+    //      TLibCANFD f0 ;
+    //      memset(&f0,0,sizeof(TLibCANFD));
+    //      f0.FIdentifier = 0x123;
+    //      f0.FDLC = 8;
+    //      f0.FFDProperties =0;
+    //      f0.FProperties =1;
+    //      tscan_transmit_canfd_async(HandleList[0],&f0);
+    //     }
+    //  }
+
     return 0;
 }
