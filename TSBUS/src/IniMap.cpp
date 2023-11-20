@@ -115,6 +115,7 @@ int flexraysrcport = 0;
 string flexraydstip;
 int flexraydstport = 0;
 u8 E2ECale = 1;
+int WakeTime = 0;
 vector<string> Chn_AIntervalCnt;
 vector<string> ADeviceSerials;
 
@@ -561,6 +562,7 @@ void Read_ini(ini::iniReader config, vector<map<uint32_t, map<uint32_t, vector<m
     flexraydstip = config.ReadString(FConfig, FlexRayDSTIP, "127.0.0.1");
     flexraydstport = config.ReadInt(FConfig, FlexRayDSTPORT, 8001);
     E2ECale = (u8)config.ReadInt(FConfig, E2EConfig, 8001);
+    WakeTime = config.ReadInt(FConfig, "WakeTime", 0);
 }
 
 #if defined(_WIN32)
@@ -1095,6 +1097,23 @@ void *receiveData(void *server_fd)
         }
     }
 }
+
+// 将ini里的配置发送
+void config_wake_bus(vector<map<uint32_t, map<uint32_t, vector<map<uint64_t, frame_data>>>>> MappingTable)
+{
+    // MappingTable[i][chnidx][bustype][0]
+    for (int i = 0; i < MappingTable.size(); i++)
+    {
+        for (int chnidx = 0; chnidx < MaxCount; chnidx++)
+        {
+            if (MappingTable[i][chnidx][1].size() != 0)
+            {
+                wake_canbus(HandleList[i],chnidx, MappingTable[i][chnidx][1][0], OnPreCAN);
+            }     
+        }
+    }
+}
+
 // 将ini里的配置发送
 void config_bus(vector<map<uint32_t, map<uint32_t, vector<map<uint64_t, frame_data>>>>> MappingTable)
 {
@@ -1157,6 +1176,8 @@ int main(int argc, char *argv[])
             // cout << "hw open error" << endl;
             return -5;
         }
+        config_wake_bus(MappingTable);
+        usleep(WakeTime*1000);
         config_bus(MappingTable);
     }
     else
