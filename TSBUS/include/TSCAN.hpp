@@ -30,10 +30,11 @@ u8 get_reallen(u8 len)
 
 u64 canHWHandle = 0;
 
-s32 wake_canbus(size_t const HWHandle,const s32 canCountidx,map<uint64_t, frame_data> &ChnList, const TCANFDQueueEvent_WHandle ACallback){
+s32 wake_canbus(size_t const HWHandle, const s32 canCountidx, map<uint64_t, frame_data> &ChnList, const TCANFDQueueEvent_WHandle ACallback)
+{
     TLibCANFD AMsg;
     memset(&AMsg, 0, sizeof(TLibCANFD));
-    AMsg.FIdxChn = canCountidx;
+    // AMsg.FIdxChn = canCountidx;
     map<uint64_t, frame_data>::iterator it = ChnList.begin();
     for (int idx = 0; it != ChnList.end(); it++, idx++)
     {
@@ -53,7 +54,8 @@ s32 wake_canbus(size_t const HWHandle,const s32 canCountidx,map<uint64_t, frame_
         u8 AISEst = (~isstd) & 1;
         AMsg.SetData(true);
         // AMsg.FProperties &=0x7f;
-        if(it->second.is_wake==1){
+        if (it->second.is_wake == 1)
+        {
             if (Cycletime != 0)
             {
                 if (isprecise == 1)
@@ -62,7 +64,8 @@ s32 wake_canbus(size_t const HWHandle,const s32 canCountidx,map<uint64_t, frame_
                     tscan_add_cyclic_msg_canfd(HWHandle, &AMsg, (float)Cycletime);
                     cout << AMsg.FIdentifier << "           " << ret << "           " << Cycletime << "         " << (u32)AMsg.FIdxChn << endl;
                 }
-                else{
+                else
+                {
                     tscan_add_cyclic_msg_canfd_wo_compensation(HWHandle, &AMsg, (float)Cycletime);
                 }
             }
@@ -108,7 +111,8 @@ s32 ini_canbus(size_t const HWHandle, const s32 canCountidx, map<uint64_t, frame
         u8 AISEst = (~isstd) & 1;
         AMsg.SetData(true);
         // AMsg.FProperties &=0x7f;
-        if(it->second.is_wake==0){
+        if (it->second.is_wake == 0)
+        {
             if (Cycletime != 0)
             {
                 if (isprecise == 1)
@@ -117,7 +121,8 @@ s32 ini_canbus(size_t const HWHandle, const s32 canCountidx, map<uint64_t, frame
                     tscan_add_cyclic_msg_canfd(HWHandle, &AMsg, (float)Cycletime);
                     cout << AMsg.FIdentifier << "           " << ret << "           " << Cycletime << "         " << (u32)AMsg.FIdxChn << endl;
                 }
-                else{
+                else
+                {
                     tscan_add_cyclic_msg_canfd_wo_compensation(HWHandle, &AMsg, (float)Cycletime);
                 }
                 usleep(7000);

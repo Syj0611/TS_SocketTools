@@ -40,19 +40,23 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # set the host and port number
 host = '127.0.0.1'
+# can
 port = 8003
+# flexray
+# port = 8001
 
 # connection to host on the port.
 client_socket.bind((host, port))
 client_socket.sendto("nihao".encode("utf8"), (host, 8000))
 a = True
+b = 0
 while True:
     # time.sleep(0.01)
-
     msg, addr = client_socket.recvfrom(1024)
     if(len(msg)>= 308):
+        # UDP发送flexray
         # Msg = cast(msg, PLIBFlexrayHW).contents
-        # if(Msg.AMsg.FSlotId==55 and Msg.AMsg.FCycleNumber % 1 ==0):
+        # if(Msg.AMsg.FSlotId==1 and Msg.AMsg.FCycleNumber % 1 ==0):
         #     Msg.AMsg.FData[11] &= 0xF0
         #     Msg.AMsg.FData[11] |= 3
         #     Msg.StopNet = 0
@@ -63,16 +67,23 @@ while True:
         #         print(111)
         pass
     elif(len(msg) >= 88):
+        ## UDP发送can
         Msg = cast(msg, PLIBCANFDHW).contents
         if a:
-            AMsg = TLIBCANFD(0,8,0x1,1,1,[1,2,3,4,5,6,7,8])
+            # if b == 10:
+            #     b = 0
+            AMsg = TLIBCANFD(0,8,0x53F,1,0,[1,2,3,4,5,6,7,8])
+            # print(sizeof(AMsg))
             Msg.AMsg = AMsg
             Msg.CyclicTime = 0 # 周期时间,0为发送一帧，-1为停止当前帧发送，-2为停止当前bus发送
-            Msg.LogFlag = 0 # log启停,0为log启动，1为暂停
+            Msg.LogFlag = 1 # log启停,0为log启动，1为暂停
             a = False
+            print(b)
+            # print(sizeof(Msg))
             client_socket.sendto(Msg,(host, 8002))
-            print("111")
-            
+            b = b+1
+            time.sleep(0.001)
+
         # print(Msg)
     # Msg.FData[0] = 0xf1
     

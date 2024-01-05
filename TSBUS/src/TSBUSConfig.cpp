@@ -8,18 +8,18 @@
  */
 #pragma once
 #include "TSCANDef.hpp"
-#include<map>
+#include <map>
 
-#include<iostream>
-#include<cstdio>
-#include<bitset>
-#include"./stdc++.h"
+#include <iostream>
+#include <cstdio>
+#include <bitset>
+#include "./stdc++.h"
 #include <string.h>
 using namespace std;
 
-#define CoolCode  0x31
-#define NormalCode  0x1
-#define OneSend  0xA9
+#define CoolCode 0x31
+#define NormalCode 0x1
+#define OneSend 0xA9
 
 typedef struct _signal_parse
 {
@@ -33,31 +33,31 @@ typedef struct _signal_parse
     u8 is_cntr;
     u8 errorcounter;
     u8 errorcrc;
-    
+
     double factor;
     double offset;
     double value;
-    
+
     TLibFlexRay AMsg;
     // char AMsg[302];
-}signal_parse,*psignal_parse;
+} signal_parse, *psignal_parse;
 
 typedef struct _frame_data
 {
     u8 FData[254];
-    u8 is_wake;  
+    u8 is_wake;
     vector<vector<signal_parse>> e2e_list;
     // char AMsg[302];
-}frame_data,*pframe_data;
+} frame_data, *pframe_data;
 
 void get_real_signal(psignal_parse Signal)
 {
-    Signal->start_byte = (Signal->start_bit) / 8 ;
+    Signal->start_byte = (Signal->start_bit) / 8;
     int val_bit = Signal->start_bit % 8;
-    if(Signal->is_intel)
+    if (Signal->is_intel)
     {
         val_bit = Signal->bitlen - (8 - val_bit);
-        if(val_bit % 8 ==0)
+        if (val_bit % 8 == 0)
             Signal->byte_len = val_bit / 8;
         else
             Signal->byte_len = (val_bit / 8) + 1;
@@ -65,47 +65,47 @@ void get_real_signal(psignal_parse Signal)
     else
     {
         val_bit = Signal->bitlen - (val_bit + 1);
-        if(val_bit % 8 ==0)
+        if (val_bit % 8 == 0)
             Signal->byte_len = val_bit / 8;
         else
             Signal->byte_len = (val_bit / 8) + 1;
     }
-    Signal->byte_len +=1;
+    Signal->byte_len += 1;
     Signal->start_bit = Signal->start_bit - Signal->start_byte * 8;
 }
 
-
-s32 calcrealstartbit(int startbit,int bitlen,int intel)
+s32 calcrealstartbit(int startbit, int bitlen, int intel)
 {
-    int val_len = startbit % 8 +1;
-    if(!intel)
+    int val_len = startbit % 8 + 1;
+    if (!intel)
     {
-        if(bitlen<=val_len)
+        if (bitlen <= val_len)
         {
             startbit = startbit - bitlen + 1;
         }
         else
         {
-            //len 2                  //11  87                  
-            int second_bit = (((startbit/8) +1)+ ((bitlen - val_len)/9 +1))*8 - 1;
+            // len 2                  //11  87
+            int second_bit = (((startbit / 8) + 1) + ((bitlen - val_len) / 9 + 1)) * 8 - 1;
 
-            int second_bit_len = (bitlen - val_len)%8;
-            if(second_bit_len == 0)
+            int second_bit_len = (bitlen - val_len) % 8;
+            if (second_bit_len == 0)
                 startbit = second_bit - 7;
             else
                 startbit = second_bit - second_bit_len + 1;
         }
     }
-    else{
+    else
+    {
         startbit = startbit - bitlen + 1;
     }
-    return 0;    
+    return 0;
 }
 
-s32 InitFlexrayNode(size_t ADeviceHandle, int AChnIdx,PLibTrigger_def Frames,const int* FrameLength,const int len)
+s32 InitFlexrayNode(size_t ADeviceHandle, int AChnIdx, PLibTrigger_def Frames, const int *FrameLength, const int len)
 {
-    TLibFlexray_controller_config	controllerConfig;
-    //memset(&controllerConfig, 0, sizeof(TLibFlexray_controller_config));
+    TLibFlexray_controller_config controllerConfig;
+    // memset(&controllerConfig, 0, sizeof(TLibFlexray_controller_config));
     int channelIndex = AChnIdx;
     controllerConfig.NETWORK_MANAGEMENT_VECTOR_LENGTH = 8;
     controllerConfig.PAYLOAD_LENGTH_STATIC = 16;
@@ -125,32 +125,32 @@ s32 InitFlexrayNode(size_t ADeviceHandle, int AChnIdx,PLibTrigger_def Frames,con
     controllerConfig.WAKE_UP_SYMBOL_TX_IDLE = 180;
     controllerConfig.WAKE_UP_SYMBOL_TX_LOW = 60;
     // __ succ1Config
-    controllerConfig.channelAConnectedNode = 1;// 是否启用通道A,0不启动，1启动
-    controllerConfig.channelBConnectedNode = 1;// 是否启用通道B,0不启动，1启动
-    controllerConfig.channelASymbolTransmitted = 1;// 是否启用通道A的符号传输功能,0不启动，1启动
-    controllerConfig.channelBSymbolTransmitted = 1;// 是否启用通道B的符号传输功能,0不启动，1启动
+    controllerConfig.channelAConnectedNode = 1;     // 是否启用通道A,0不启动，1启动
+    controllerConfig.channelBConnectedNode = 1;     // 是否启用通道B,0不启动，1启动
+    controllerConfig.channelASymbolTransmitted = 1; // 是否启用通道A的符号传输功能,0不启动，1启动
+    controllerConfig.channelBSymbolTransmitted = 1; // 是否启用通道B的符号传输功能,0不启动，1启动
     controllerConfig.ALLOW_HALT_DUE_TO_CLOCK = 1;
-    controllerConfig.SINGLE_SLOT_ENABLED = 0;// FALSE_0, TRUE_1
-    controllerConfig.wake_up_idx = 0;// 唤醒通道选择， 0_通道A， 1 通道B
+    controllerConfig.SINGLE_SLOT_ENABLED = 0; // FALSE_0, TRUE_1
+    controllerConfig.wake_up_idx = 0;         // 唤醒通道选择， 0_通道A， 1 通道B
     controllerConfig.ALLOW_PASSIVE_TO_ACTIVE = 2;
     controllerConfig.COLD_START_ATTEMPTS = 10;
-    controllerConfig.synchFrameTransmitted = 1;// 本节点是否需要发送同步报文
-    controllerConfig.startupFrameTransmitted = 1;// 本节点是否需要发送启动报文
-                // __ succ2Config
+    controllerConfig.synchFrameTransmitted = 1;   // 本节点是否需要发送同步报文
+    controllerConfig.startupFrameTransmitted = 1; // 本节点是否需要发送启动报文
+                                                  // __ succ2Config
     controllerConfig.LISTEN_TIMEOUT = 401202;
-    controllerConfig.LISTEN_NOISE = 2;//2_16
-                // __ succ3Config
+    controllerConfig.LISTEN_NOISE = 2; // 2_16
+                                       //  __ succ3Config
     controllerConfig.MAX_WITHOUT_CLOCK_CORRECTION_PASSIVE = 10;
     controllerConfig.MAX_WITHOUT_CLOCK_CORRECTION_FATAL = 14;
-    //uint8_t REVERS0;//内存对齐
-    // __ gtuConfig
-    // __ gtu01Config
+    // uint8_t REVERS0;//内存对齐
+    //  __ gtuConfig
+    //  __ gtu01Config
     controllerConfig.MICRO_PER_CYCLE = 200000;
     // __ gtu02Config
     controllerConfig.Macro_Per_Cycle = 5000;
     controllerConfig.SYNC_NODE_MAX = 8;
-    //uint8_t REVERS1;//内存对齐
-    // __ gtu03Config
+    // uint8_t REVERS1;//内存对齐
+    //  __ gtu03Config
     controllerConfig.MICRO_INITIAL_OFFSET_A = 31;
     controllerConfig.MICRO_INITIAL_OFFSET_B = 31;
     controllerConfig.MACRO_INITIAL_OFFSET_A = 11;
@@ -171,138 +171,136 @@ s32 InitFlexrayNode(size_t ADeviceHandle, int AChnIdx,PLibTrigger_def Frames,con
     controllerConfig.NUMBER_OF_STATIC_SLOTS = 60;
     // __ gtu08Config
     controllerConfig.MINISLOT = 10;
-    //uint8_t REVERS2;//内存对齐
+    // uint8_t REVERS2;//内存对齐
     controllerConfig.NUMBER_OF_MINISLOTS = 129;
     // __ gtu09Config
     controllerConfig.DYNAMIC_SLOT_IDLE_PHASE = 0;
     controllerConfig.ACTION_POINT_OFFSET = 9;
     controllerConfig.MINISLOT_ACTION_POINT_OFFSET = 3;
-    //uint8_t REVERS3;//内存对齐
-    // __ gtu10Config
+    // uint8_t REVERS3;//内存对齐
+    //  __ gtu10Config
     controllerConfig.OFFSET_CORRECTION_OUT = 378;
     controllerConfig.RATE_CORRECTION_OUT = 601;
     // __ gtu11Config
     controllerConfig.EXTERN_OFFSET_CORRECTION = 0;
     controllerConfig.EXTERN_RATE_CORRECTION = 0;
-    controllerConfig.config_byte1 = 1;  //启动桥接功能，启用接收FIFO，启动终端电阻
-    controllerConfig.config_byte = 0xbF;  //启动桥接功能，启用接收FIFO，启动终端电阻
+    controllerConfig.config_byte1 = 1;   // 启动桥接功能，启用接收FIFO，启动终端电阻
+    controllerConfig.config_byte = 0xbF; // 启动桥接功能，启用接收FIFO，启动终端电阻
     return tsflexray_set_controller_frametrigger(ADeviceHandle, channelIndex, &controllerConfig, &FrameLength[0], len, Frames, len, 1000);
 }
 
-
-s32 InitFlexrayNode(size_t ADeviceHandle, map<uint32_t,map<uint64_t,vector<vector<signal_parse>>>>& ChnList)
+s32 InitFlexrayNode(size_t ADeviceHandle, map<uint32_t, map<uint64_t, vector<vector<signal_parse>>>> &ChnList)
 {
     int ret = -1;
-    TLibFlexray_controller_config	controllerConfig;
+    TLibFlexray_controller_config controllerConfig;
     controllerConfig.NETWORK_MANAGEMENT_VECTOR_LENGTH = 8;
-        controllerConfig.PAYLOAD_LENGTH_STATIC = 16;
-        controllerConfig.LATEST_TX = 124;
-        // __ prtc1Control
-        controllerConfig.T_S_S_TRANSMITTER = 9;
-        controllerConfig.CAS_RX_LOW_MAX = 87;
-        controllerConfig.SPEED = 0;
-        controllerConfig.WAKE_UP_SYMBOL_RX_WINDOW = 301;
-        
-        // __ prtc2Control
-        controllerConfig.WAKE_UP_SYMBOL_RX_IDLE = 59;
-        controllerConfig.WAKE_UP_SYMBOL_RX_LOW = 55;
-        controllerConfig.WAKE_UP_SYMBOL_TX_IDLE = 180;
-        controllerConfig.WAKE_UP_SYMBOL_TX_LOW = 60;
-        // __ succ1Config
-        controllerConfig.channelAConnectedNode = 1;// 是否启用通道A,0不启动，1启动
-        controllerConfig.channelBConnectedNode = 1;// 是否启用通道B,0不启动，1启动
-        controllerConfig.channelASymbolTransmitted = 1;// 是否启用通道A的符号传输功能,0不启动，1启动
-        controllerConfig.channelBSymbolTransmitted = 1;// 是否启用通道B的符号传输功能,0不启动，1启动
-        controllerConfig.ALLOW_HALT_DUE_TO_CLOCK = 1;
-        controllerConfig.SINGLE_SLOT_ENABLED = 0;// FALSE_0, TRUE_1
-        controllerConfig.wake_up_idx = 0;// 唤醒通道选择， 0_通道A， 1 通道B
-        controllerConfig.ALLOW_PASSIVE_TO_ACTIVE = 2;
-        controllerConfig.COLD_START_ATTEMPTS = 10;
-        controllerConfig.synchFrameTransmitted = 1;// 本节点是否需要发送同步报文
-        controllerConfig.startupFrameTransmitted = 1;// 本节点是否需要发送启动报文
-                    // __ succ2Config
-        controllerConfig.LISTEN_TIMEOUT = 401202;
-        controllerConfig.LISTEN_NOISE = 2;//2_16
-                    // __ succ3Config
-        controllerConfig.MAX_WITHOUT_CLOCK_CORRECTION_PASSIVE = 10;
-        controllerConfig.MAX_WITHOUT_CLOCK_CORRECTION_FATAL = 14;
-        //uint8_t REVERS0;//内存对齐
-        // __ gtuConfig
-        // __ gtu01Config
-        controllerConfig.MICRO_PER_CYCLE = 200000;
-        // __ gtu02Config
-        controllerConfig.Macro_Per_Cycle = 5000;
-        controllerConfig.SYNC_NODE_MAX = 8;
-        //uint8_t REVERS1;//内存对齐
-        // __ gtu03Config
-        controllerConfig.MICRO_INITIAL_OFFSET_A = 31;
-        controllerConfig.MICRO_INITIAL_OFFSET_B = 31;
-        controllerConfig.MACRO_INITIAL_OFFSET_A = 11;
-        controllerConfig.MACRO_INITIAL_OFFSET_B = 11;
-        // __ gtu04Config
-        controllerConfig.N_I_T = 44;
-        controllerConfig.OFFSET_CORRECTION_START = 4981;
-        // __ gtu05Config
-        controllerConfig.DELAY_COMPENSATION_A = 1;
-        controllerConfig.DELAY_COMPENSATION_B = 1;
-        controllerConfig.CLUSTER_DRIFT_DAMPING = 2;
-        controllerConfig.DECODING_CORRECTION = 48;
-        // __ gtu06Config
-        controllerConfig.ACCEPTED_STARTUP_RANGE = 212;
-        controllerConfig.MAX_DRIFT = 601;
-        // __ gtu07Config
-        controllerConfig.STATIC_SLOT = 61;
-        controllerConfig.NUMBER_OF_STATIC_SLOTS = 60;
-        // __ gtu08Config
-        controllerConfig.MINISLOT = 10;
-        //uint8_t REVERS2;//内存对齐
-        controllerConfig.NUMBER_OF_MINISLOTS = 129;
-        // __ gtu09Config
-        controllerConfig.DYNAMIC_SLOT_IDLE_PHASE = 0;
-        controllerConfig.ACTION_POINT_OFFSET = 9;
-        controllerConfig.MINISLOT_ACTION_POINT_OFFSET = 3;
-        //uint8_t REVERS3;//内存对齐
-        // __ gtu10Config
-        controllerConfig.OFFSET_CORRECTION_OUT = 378;
-        controllerConfig.RATE_CORRECTION_OUT = 601;
-        // __ gtu11Config
-        controllerConfig.EXTERN_OFFSET_CORRECTION = 0;
-        controllerConfig.EXTERN_RATE_CORRECTION = 0;
-        controllerConfig.config_byte1 = 1;  //启动桥接功能，启用接收FIFO，启动终端电阻
-        controllerConfig.config_byte = 0xbF;  //启动桥接功能，启用接收FIFO，启动终端电阻
-        controllerConfig.WAKE_UP_PATTERN = 43;
-    //memset(&controllerConfig, 0, sizeof(TLibFlexray_controller_config));
+    controllerConfig.PAYLOAD_LENGTH_STATIC = 16;
+    controllerConfig.LATEST_TX = 124;
+    // __ prtc1Control
+    controllerConfig.T_S_S_TRANSMITTER = 9;
+    controllerConfig.CAS_RX_LOW_MAX = 87;
+    controllerConfig.SPEED = 0;
+    controllerConfig.WAKE_UP_SYMBOL_RX_WINDOW = 301;
+
+    // __ prtc2Control
+    controllerConfig.WAKE_UP_SYMBOL_RX_IDLE = 59;
+    controllerConfig.WAKE_UP_SYMBOL_RX_LOW = 55;
+    controllerConfig.WAKE_UP_SYMBOL_TX_IDLE = 180;
+    controllerConfig.WAKE_UP_SYMBOL_TX_LOW = 60;
+    // __ succ1Config
+    controllerConfig.channelAConnectedNode = 1;     // 是否启用通道A,0不启动，1启动
+    controllerConfig.channelBConnectedNode = 1;     // 是否启用通道B,0不启动，1启动
+    controllerConfig.channelASymbolTransmitted = 1; // 是否启用通道A的符号传输功能,0不启动，1启动
+    controllerConfig.channelBSymbolTransmitted = 1; // 是否启用通道B的符号传输功能,0不启动，1启动
+    controllerConfig.ALLOW_HALT_DUE_TO_CLOCK = 1;
+    controllerConfig.SINGLE_SLOT_ENABLED = 0; // FALSE_0, TRUE_1
+    controllerConfig.wake_up_idx = 0;         // 唤醒通道选择， 0_通道A， 1 通道B
+    controllerConfig.ALLOW_PASSIVE_TO_ACTIVE = 2;
+    controllerConfig.COLD_START_ATTEMPTS = 10;
+    controllerConfig.synchFrameTransmitted = 1;   // 本节点是否需要发送同步报文
+    controllerConfig.startupFrameTransmitted = 1; // 本节点是否需要发送启动报文
+                                                  // __ succ2Config
+    controllerConfig.LISTEN_TIMEOUT = 401202;
+    controllerConfig.LISTEN_NOISE = 2; // 2_16
+                                       //  __ succ3Config
+    controllerConfig.MAX_WITHOUT_CLOCK_CORRECTION_PASSIVE = 10;
+    controllerConfig.MAX_WITHOUT_CLOCK_CORRECTION_FATAL = 14;
+    // uint8_t REVERS0;//内存对齐
+    //  __ gtuConfig
+    //  __ gtu01Config
+    controllerConfig.MICRO_PER_CYCLE = 200000;
+    // __ gtu02Config
+    controllerConfig.Macro_Per_Cycle = 5000;
+    controllerConfig.SYNC_NODE_MAX = 8;
+    // uint8_t REVERS1;//内存对齐
+    //  __ gtu03Config
+    controllerConfig.MICRO_INITIAL_OFFSET_A = 31;
+    controllerConfig.MICRO_INITIAL_OFFSET_B = 31;
+    controllerConfig.MACRO_INITIAL_OFFSET_A = 11;
+    controllerConfig.MACRO_INITIAL_OFFSET_B = 11;
+    // __ gtu04Config
+    controllerConfig.N_I_T = 44;
+    controllerConfig.OFFSET_CORRECTION_START = 4981;
+    // __ gtu05Config
+    controllerConfig.DELAY_COMPENSATION_A = 1;
+    controllerConfig.DELAY_COMPENSATION_B = 1;
+    controllerConfig.CLUSTER_DRIFT_DAMPING = 2;
+    controllerConfig.DECODING_CORRECTION = 48;
+    // __ gtu06Config
+    controllerConfig.ACCEPTED_STARTUP_RANGE = 212;
+    controllerConfig.MAX_DRIFT = 601;
+    // __ gtu07Config
+    controllerConfig.STATIC_SLOT = 61;
+    controllerConfig.NUMBER_OF_STATIC_SLOTS = 60;
+    // __ gtu08Config
+    controllerConfig.MINISLOT = 10;
+    // uint8_t REVERS2;//内存对齐
+    controllerConfig.NUMBER_OF_MINISLOTS = 129;
+    // __ gtu09Config
+    controllerConfig.DYNAMIC_SLOT_IDLE_PHASE = 0;
+    controllerConfig.ACTION_POINT_OFFSET = 9;
+    controllerConfig.MINISLOT_ACTION_POINT_OFFSET = 3;
+    // uint8_t REVERS3;//内存对齐
+    //  __ gtu10Config
+    controllerConfig.OFFSET_CORRECTION_OUT = 378;
+    controllerConfig.RATE_CORRECTION_OUT = 601;
+    // __ gtu11Config
+    controllerConfig.EXTERN_OFFSET_CORRECTION = 0;
+    controllerConfig.EXTERN_RATE_CORRECTION = 0;
+    controllerConfig.config_byte1 = 1;   // 启动桥接功能，启用接收FIFO，启动终端电阻
+    controllerConfig.config_byte = 0xbF; // 启动桥接功能，启用接收FIFO，启动终端电阻
+    controllerConfig.WAKE_UP_PATTERN = 43;
+    // memset(&controllerConfig, 0, sizeof(TLibFlexray_controller_config));
     int FrameLength[124] = {0};
-    for(int i = 0; i < ChnList.size(); i++)
+    for (int i = 0; i < ChnList.size(); i++)
     {
-        
+
         TLibTrigger_def Trigger_def[124] = {0};
-        map<uint64_t,vector<vector<signal_parse>>>::iterator it = ChnList[i].begin();
+        map<uint64_t, vector<vector<signal_parse>>>::iterator it = ChnList[i].begin();
         s32 len = ChnList[i].size();
-        for (int idx=0;it != ChnList[i].end() && idx<124; it++,idx++)
+        for (int idx = 0; it != ChnList[i].end() && idx < 124; it++, idx++)
         {
-            TLibTrigger_def Trigger ;
-            Trigger.slot_id = (u16)((it->first>>48)&0xffff);
-            Trigger.cycle_code = (u8)((it->first>>40)&0xff)+(u8)((it->first>>32)&0xff);
+            TLibTrigger_def Trigger;
+            Trigger.slot_id = (u16)((it->first >> 48) & 0xffff);
+            Trigger.cycle_code = (u8)((it->first >> 40) & 0xff) + (u8)((it->first >> 32) & 0xff);
             Trigger.frame_idx = idx;
-            Trigger.rev =0;
+            Trigger.rev = 0;
             Trigger_def[idx] = Trigger;
             // Trigger_def[idx].slot_id = (u16)((it->first>>48)&0xffff);
             // Trigger_def[idx].cycle_code = (u8)((it->first>>40)&0xff)+(u8)((it->first>>32)&0xff);
             // Trigger_def[idx].frame_idx = idx;
             // Trigger_def[idx].rev =0;
-            FrameLength[idx] = (u8)(((it->first))&0xff);
-            if(Trigger_def[idx].slot_id == Trigger_def[0].slot_id)
+            FrameLength[idx] = (u8)(((it->first)) & 0xff);
+            if (Trigger_def[idx].slot_id == Trigger_def[0].slot_id)
             {
                 Trigger_def[idx].config_byte = CoolCode;
             }
-            else if(Trigger_def[idx].slot_id<61)
+            else if (Trigger_def[idx].slot_id < 61)
             {
                 Trigger_def[idx].config_byte = NormalCode;
             }
-            else 
+            else
                 Trigger_def[idx].config_byte = OneSend;
-
         }
         ret = tsflexray_set_controller_frametrigger(ADeviceHandle, i, &controllerConfig, FrameLength, len, Trigger_def, len, 1000);
 
@@ -312,120 +310,122 @@ s32 InitFlexrayNode(size_t ADeviceHandle, map<uint32_t,map<uint64_t,vector<vecto
     return ret;
 }
 
-s32 InitFlexrayNode(size_t ADeviceHandle, int AChnidx, map<uint64_t, frame_data>& ChnList)
+s32 InitFlexrayNode(size_t ADeviceHandle, int AChnidx, map<uint64_t, frame_data> &ChnList)
 {
     int ret = -1;
-    TLibFlexray_controller_config	controllerConfig;
+    TLibFlexray_controller_config controllerConfig;
     controllerConfig.NETWORK_MANAGEMENT_VECTOR_LENGTH = 8;
-        controllerConfig.PAYLOAD_LENGTH_STATIC = 16;
-        controllerConfig.LATEST_TX = 124;
-        // __ prtc1Control
-        controllerConfig.T_S_S_TRANSMITTER = 9;
-        controllerConfig.CAS_RX_LOW_MAX = 87;
-        controllerConfig.SPEED = 0;
-        controllerConfig.WAKE_UP_SYMBOL_RX_WINDOW = 301;
-        
-        // __ prtc2Control
-        controllerConfig.WAKE_UP_SYMBOL_RX_IDLE = 59;
-        controllerConfig.WAKE_UP_SYMBOL_RX_LOW = 55;
-        controllerConfig.WAKE_UP_SYMBOL_TX_IDLE = 180;
-        controllerConfig.WAKE_UP_SYMBOL_TX_LOW = 60;
-        // __ succ1Config
-        controllerConfig.channelAConnectedNode = 1;// 是否启用通道A,0不启动，1启动
-        controllerConfig.channelBConnectedNode = 1;// 是否启用通道B,0不启动，1启动
-        controllerConfig.channelASymbolTransmitted = 1;// 是否启用通道A的符号传输功能,0不启动，1启动
-        controllerConfig.channelBSymbolTransmitted = 1;// 是否启用通道B的符号传输功能,0不启动，1启动
-        controllerConfig.ALLOW_HALT_DUE_TO_CLOCK = 1;
-        controllerConfig.SINGLE_SLOT_ENABLED = 0;// FALSE_0, TRUE_1
-        controllerConfig.wake_up_idx = 0;// 唤醒通道选择， 0_通道A， 1 通道B
-        controllerConfig.ALLOW_PASSIVE_TO_ACTIVE = 2;
-        controllerConfig.COLD_START_ATTEMPTS = 10;
-        controllerConfig.synchFrameTransmitted = 1;// 本节点是否需要发送同步报文
-        controllerConfig.startupFrameTransmitted = 1;// 本节点是否需要发送启动报文
-                    // __ succ2Config
-        controllerConfig.LISTEN_TIMEOUT = 401202;
-        controllerConfig.LISTEN_NOISE = 2;//2_16
-                    // __ succ3Config
-        controllerConfig.MAX_WITHOUT_CLOCK_CORRECTION_PASSIVE = 10;
-        controllerConfig.MAX_WITHOUT_CLOCK_CORRECTION_FATAL = 14;
-        //uint8_t REVERS0;//内存对齐
-        // __ gtuConfig
-        // __ gtu01Config
-        controllerConfig.MICRO_PER_CYCLE = 200000;
-        // __ gtu02Config
-        controllerConfig.Macro_Per_Cycle = 5000;
-        controllerConfig.SYNC_NODE_MAX = 8;
-        //uint8_t REVERS1;//内存对齐
-        // __ gtu03Config
-        controllerConfig.MICRO_INITIAL_OFFSET_A = 31;
-        controllerConfig.MICRO_INITIAL_OFFSET_B = 31;
-        controllerConfig.MACRO_INITIAL_OFFSET_A = 11;
-        controllerConfig.MACRO_INITIAL_OFFSET_B = 11;
-        // __ gtu04Config
-        controllerConfig.N_I_T = 44;
-        controllerConfig.OFFSET_CORRECTION_START = 4981;
-        // __ gtu05Config
-        controllerConfig.DELAY_COMPENSATION_A = 1;
-        controllerConfig.DELAY_COMPENSATION_B = 1;
-        controllerConfig.CLUSTER_DRIFT_DAMPING = 2;
-        controllerConfig.DECODING_CORRECTION = 48;
-        // __ gtu06Config
-        controllerConfig.ACCEPTED_STARTUP_RANGE = 212;
-        controllerConfig.MAX_DRIFT = 601;
-        // __ gtu07Config
-        controllerConfig.STATIC_SLOT = 61;
-        controllerConfig.NUMBER_OF_STATIC_SLOTS = 60;
-        // __ gtu08Config
-        controllerConfig.MINISLOT = 10;
-        //uint8_t REVERS2;//内存对齐
-        controllerConfig.NUMBER_OF_MINISLOTS = 129;
-        // __ gtu09Config
-        controllerConfig.DYNAMIC_SLOT_IDLE_PHASE = 0;
-        controllerConfig.ACTION_POINT_OFFSET = 9;
-        controllerConfig.MINISLOT_ACTION_POINT_OFFSET = 3;
-        //uint8_t REVERS3;//内存对齐
-        // __ gtu10Config
-        controllerConfig.OFFSET_CORRECTION_OUT = 378;
-        controllerConfig.RATE_CORRECTION_OUT = 601;
-        // __ gtu11Config
-        controllerConfig.EXTERN_OFFSET_CORRECTION = 0;
-        controllerConfig.EXTERN_RATE_CORRECTION = 0;
-        controllerConfig.config_byte1 = 1;  //启动桥接功能，启用接收FIFO，启动终端电阻
-        controllerConfig.config_byte = 0xbF;  //启动桥接功能，启用接收FIFO，启动终端电阻
-        controllerConfig.WAKE_UP_PATTERN = 43;
-    //memset(&controllerConfig, 0, sizeof(TLibFlexray_controller_config));
-        int FrameLength[124] = {0};
+    controllerConfig.PAYLOAD_LENGTH_STATIC = 16;
+    controllerConfig.LATEST_TX = 124;
+    // __ prtc1Control
+    controllerConfig.T_S_S_TRANSMITTER = 9;
+    controllerConfig.CAS_RX_LOW_MAX = 87;
+    controllerConfig.SPEED = 0;
+    controllerConfig.WAKE_UP_SYMBOL_RX_WINDOW = 301;
 
-        TLibTrigger_def Trigger_def[124] = {0};
-        map<uint64_t,frame_data>::iterator it = ChnList.begin();
-        s32 len = ChnList.size();
-        for (int idx=0;it != ChnList.end() && idx<124; it++,idx++)
+    // __ prtc2Control
+    controllerConfig.WAKE_UP_SYMBOL_RX_IDLE = 59;
+    controllerConfig.WAKE_UP_SYMBOL_RX_LOW = 55;
+    controllerConfig.WAKE_UP_SYMBOL_TX_IDLE = 180;
+    controllerConfig.WAKE_UP_SYMBOL_TX_LOW = 60;
+    // __ succ1Config
+    controllerConfig.channelAConnectedNode = 1;     // 是否启用通道A,0不启动，1启动
+    controllerConfig.channelBConnectedNode = 1;     // 是否启用通道B,0不启动，1启动
+    controllerConfig.channelASymbolTransmitted = 1; // 是否启用通道A的符号传输功能,0不启动，1启动
+    controllerConfig.channelBSymbolTransmitted = 1; // 是否启用通道B的符号传输功能,0不启动，1启动
+    controllerConfig.ALLOW_HALT_DUE_TO_CLOCK = 1;
+    controllerConfig.SINGLE_SLOT_ENABLED = 0; // FALSE_0, TRUE_1
+    controllerConfig.wake_up_idx = 0;         // 唤醒通道选择， 0_通道A， 1 通道B
+    controllerConfig.ALLOW_PASSIVE_TO_ACTIVE = 2;
+    controllerConfig.COLD_START_ATTEMPTS = 10;
+    controllerConfig.synchFrameTransmitted = 1;   // 本节点是否需要发送同步报文
+    controllerConfig.startupFrameTransmitted = 1; // 本节点是否需要发送启动报文
+                                                  // __ succ2Config
+    controllerConfig.LISTEN_TIMEOUT = 401202;
+    controllerConfig.LISTEN_NOISE = 2; // 2_16
+                                       //  __ succ3Config
+    controllerConfig.MAX_WITHOUT_CLOCK_CORRECTION_PASSIVE = 10;
+    controllerConfig.MAX_WITHOUT_CLOCK_CORRECTION_FATAL = 14;
+    // uint8_t REVERS0;//内存对齐
+    //  __ gtuConfig
+    //  __ gtu01Config
+    controllerConfig.MICRO_PER_CYCLE = 200000;
+    // __ gtu02Config
+    controllerConfig.Macro_Per_Cycle = 5000;
+    controllerConfig.SYNC_NODE_MAX = 8;
+    // uint8_t REVERS1;//内存对齐
+    //  __ gtu03Config
+    controllerConfig.MICRO_INITIAL_OFFSET_A = 31;
+    controllerConfig.MICRO_INITIAL_OFFSET_B = 31;
+    controllerConfig.MACRO_INITIAL_OFFSET_A = 11;
+    controllerConfig.MACRO_INITIAL_OFFSET_B = 11;
+    // __ gtu04Config
+    controllerConfig.N_I_T = 44;
+    controllerConfig.OFFSET_CORRECTION_START = 4981;
+    // __ gtu05Config
+    controllerConfig.DELAY_COMPENSATION_A = 1;
+    controllerConfig.DELAY_COMPENSATION_B = 1;
+    controllerConfig.CLUSTER_DRIFT_DAMPING = 2;
+    controllerConfig.DECODING_CORRECTION = 48;
+    // __ gtu06Config
+    controllerConfig.ACCEPTED_STARTUP_RANGE = 212;
+    controllerConfig.MAX_DRIFT = 601;
+    // __ gtu07Config
+    controllerConfig.STATIC_SLOT = 61;
+    controllerConfig.NUMBER_OF_STATIC_SLOTS = 60;
+    // __ gtu08Config
+    controllerConfig.MINISLOT = 10;
+    // uint8_t REVERS2;//内存对齐
+    controllerConfig.NUMBER_OF_MINISLOTS = 129;
+    // __ gtu09Config
+    controllerConfig.DYNAMIC_SLOT_IDLE_PHASE = 0;
+    controllerConfig.ACTION_POINT_OFFSET = 9;
+    controllerConfig.MINISLOT_ACTION_POINT_OFFSET = 3;
+    // uint8_t REVERS3;//内存对齐
+    //  __ gtu10Config
+    controllerConfig.OFFSET_CORRECTION_OUT = 378;
+    controllerConfig.RATE_CORRECTION_OUT = 601;
+    // __ gtu11Config
+    controllerConfig.EXTERN_OFFSET_CORRECTION = 0;
+    controllerConfig.EXTERN_RATE_CORRECTION = 0;
+    controllerConfig.config_byte1 = 1;   // 启动桥接功能，启用接收FIFO，启动终端电阻
+    controllerConfig.config_byte = 0xbF; // 启动桥接功能，启用接收FIFO，启动终端电阻
+    controllerConfig.WAKE_UP_PATTERN = 43;
+    // memset(&controllerConfig, 0, sizeof(TLibFlexray_controller_config));
+    int FrameLength[124] = {0};
+
+    TLibTrigger_def Trigger_def[124] = {0};
+    map<uint64_t, frame_data>::iterator it = ChnList.begin();
+    s32 len = ChnList.size();
+    for (int idx = 0; it != ChnList.end() && idx < 124; it++, idx++)
+    {
+        TLibTrigger_def Trigger;
+        Trigger.slot_id = (u16)((it->first >> 48) & 0xffff);
+        Trigger.cycle_code = (u8)((it->first >> 40) & 0xff) + (u8)((it->first >> 32) & 0xff);
+        Trigger.frame_idx = idx;
+        Trigger.rev = 0;
+        Trigger_def[idx] = Trigger;
+        // Trigger_def[idx].slot_id = (u16)((it->first>>48)&0xffff);
+        // Trigger_def[idx].cycle_code = (u8)((it->first>>40)&0xff)+(u8)((it->first>>32)&0xff);
+        // Trigger_def[idx].frame_idx = idx;
+        // Trigger_def[idx].rev =0;
+        FrameLength[idx] = (u8)(((it->first)) & 0xff);
+        // 冷启动报文
+        if (Trigger_def[idx].slot_id == Trigger_def[0].slot_id)
         {
-            TLibTrigger_def Trigger ;
-            Trigger.slot_id = (u16)((it->first>>48)&0xffff);
-            Trigger.cycle_code = (u8)((it->first>>40)&0xff)+(u8)((it->first>>32)&0xff);
-            Trigger.frame_idx = idx;
-            Trigger.rev =0;
-            Trigger_def[idx] = Trigger;
-            // Trigger_def[idx].slot_id = (u16)((it->first>>48)&0xffff);
-            // Trigger_def[idx].cycle_code = (u8)((it->first>>40)&0xff)+(u8)((it->first>>32)&0xff);
-            // Trigger_def[idx].frame_idx = idx;
-            // Trigger_def[idx].rev =0;
-            FrameLength[idx] = (u8)(((it->first))&0xff);
-            if(Trigger_def[idx].slot_id == Trigger_def[0].slot_id)
-            {
-                Trigger_def[idx].config_byte = CoolCode;
-            }
-            else if(Trigger_def[idx].slot_id<61)
-            {
-                Trigger_def[idx].config_byte = NormalCode;
-            }
-            else 
-                Trigger_def[idx].config_byte = OneSend;
-
+            Trigger_def[idx].config_byte = CoolCode;
         }
-        ret = tsflexray_set_controller_frametrigger(ADeviceHandle, AChnidx, &controllerConfig, FrameLength, len, Trigger_def, len, 1000);
-        return ret;
+        // 静态帧
+        else if (Trigger_def[idx].slot_id < 61)
+        {
+            Trigger_def[idx].config_byte = NormalCode;
+        }
+        // 动态帧
+        else
+            Trigger_def[idx].config_byte = OneSend;
+    }
+    ret = tsflexray_set_controller_frametrigger(ADeviceHandle, AChnidx, &controllerConfig, FrameLength, len, Trigger_def, len, 1000);
+    return ret;
 }
 
 // void set_signal_value(psignal_parse signal, uint8_t* data)
@@ -463,7 +463,7 @@ s32 InitFlexrayNode(size_t ADeviceHandle, int AChnidx, map<uint64_t, frame_data>
 
 // double get_signal_value( psignal_parse signal,uint8_t* data)
 // {
-    
+
 //     uint32_t byte_offset = signal->start_bit / 8;
 //     uint32_t bit_offset = signal->start_bit % 8;
 //     uint32_t bit_len = signal->bitlen;
@@ -606,11 +606,11 @@ s32 InitFlexrayNode(size_t ADeviceHandle, int AChnidx, map<uint64_t, frame_data>
 //     {
 //         for(int i = 0; i < len; i++)
 //         {
-            
+
 //             if(data[i]>=0x80)
 //             {
 //                 bitset<8>temp(data[i]);
-                
+
 //                 strvalue += temp.to_string();
 //             }
 //             else
@@ -672,11 +672,11 @@ s32 InitFlexrayNode(size_t ADeviceHandle, int AChnidx, map<uint64_t, frame_data>
 //     {
 //         for(int i = 0; i < len; i++)
 //         {
-            
+
 //             if(data[i]>=0x80)
 //             {
 //                 bitset<8>temp(data[i]);
-                
+
 //                 strvalue += temp.to_string();
 //             }
 //             else
@@ -684,7 +684,7 @@ s32 InitFlexrayNode(size_t ADeviceHandle, int AChnidx, map<uint64_t, frame_data>
 //                 bitset<8>temp((data[i] | 0x80));
 //                 string tempstr = temp.to_string();
 //                 tempstr[0] = '0';
-                
+
 //                 strvalue += tempstr;
 //             }
 //         }
@@ -700,24 +700,24 @@ s32 InitFlexrayNode(size_t ADeviceHandle, int AChnidx, map<uint64_t, frame_data>
 
 // }
 
-double get_signal_value(psignal_parse Signal,uint8_t* data)
+double get_signal_value(psignal_parse Signal, uint8_t *data)
 {
-    uint64_t value =0;
+    uint64_t value = 0;
     string strvalue;
-    if(Signal->is_intel)
+    if (Signal->is_intel)
     {
-        for(int i = Signal->start_byte; i < Signal->start_byte + Signal->byte_len; i++)
+        for (int i = Signal->start_byte; i < Signal->start_byte + Signal->byte_len; i++)
         {
-            if(data[i]>=0x80)
+            if (data[i] >= 0x80)
             {
-                bitset<8>a(data[i]);
+                bitset<8> a(data[i]);
                 string temp = a.to_string();
                 reverse(temp.begin(), temp.end());
                 strvalue += temp;
             }
             else
             {
-                bitset<8>temp((data[i] | 0x80));
+                bitset<8> temp((data[i] | 0x80));
                 string tempstr = temp.to_string();
                 tempstr[0] = '0';
                 reverse(tempstr.begin(), tempstr.end());
@@ -727,58 +727,58 @@ double get_signal_value(psignal_parse Signal,uint8_t* data)
 
         int startidx = Signal->start_bit;
         string temp = strvalue.substr(startidx, Signal->bitlen);
-        //reverse(temp.begin(), temp.end());
-        Signal->value = strtoll(temp.c_str(),NULL,2);
+        // reverse(temp.begin(), temp.end());
+        Signal->value = strtoll(temp.c_str(), NULL, 2);
         return Signal->value;
     }
     else
     {
-        for(int i = Signal->start_byte; i < Signal->start_byte + Signal->byte_len; i++)
+        for (int i = Signal->start_byte; i < Signal->start_byte + Signal->byte_len; i++)
         {
-            
-            if(data[i]>=0x80)
+
+            if (data[i] >= 0x80)
             {
-                bitset<8>temp(data[i]);
-                
+                bitset<8> temp(data[i]);
+
                 strvalue += temp.to_string();
             }
             else
             {
-                bitset<8>temp((data[i] | 0x80));
+                bitset<8> temp((data[i] | 0x80));
                 string tempstr = temp.to_string();
                 tempstr[0] = '0';
                 strvalue += tempstr;
             }
         }
-        int startidx = ((Signal->start_bit/8 + 1)*8 - 1) - (Signal->start_bit%8);
+        int startidx = ((Signal->start_bit / 8 + 1) * 8 - 1) - (Signal->start_bit % 8);
         string temp = strvalue.substr(startidx, Signal->bitlen);
-        Signal->value = strtoll(temp.c_str(),NULL,2);
+        Signal->value = strtoll(temp.c_str(), NULL, 2);
         return Signal->value;
     }
 }
 
-void set_signal_value(psignal_parse Signal,uint8_t* data)
+void set_signal_value(psignal_parse Signal, uint8_t *data)
 {
-    uint64_t value = (uint64_t)((Signal->value - Signal->offset)/Signal->factor)&((1<<Signal->bitlen)-1);
+    uint64_t value = (uint64_t)((Signal->value - Signal->offset) / Signal->factor) & ((1 << Signal->bitlen) - 1);
     bitset<64> bs(value);
     string value_str = bs.to_string();
-    if(value_str.size()>Signal->bitlen)
-        value_str = value_str.substr(value_str.size()-Signal->bitlen);
-    string strvalue ;
-    if(Signal->is_intel)
+    if (value_str.size() > Signal->bitlen)
+        value_str = value_str.substr(value_str.size() - Signal->bitlen);
+    string strvalue;
+    if (Signal->is_intel)
     {
-        for(int i = Signal->start_byte; i < Signal->start_byte + Signal->byte_len; i++)
+        for (int i = Signal->start_byte; i < Signal->start_byte + Signal->byte_len; i++)
         {
-            if(data[i]>=0x80)
+            if (data[i] >= 0x80)
             {
-                bitset<8>a(data[i]);
+                bitset<8> a(data[i]);
                 string temp = a.to_string();
                 reverse(temp.begin(), temp.end());
                 strvalue += temp;
             }
             else
             {
-                bitset<8>temp((data[i] | 0x80));
+                bitset<8> temp((data[i] | 0x80));
                 string tempstr = temp.to_string();
                 tempstr[0] = '0';
                 reverse(tempstr.begin(), tempstr.end());
@@ -787,44 +787,43 @@ void set_signal_value(psignal_parse Signal,uint8_t* data)
         }
         int startidx = Signal->start_bit;
         int endidx = startidx + Signal->bitlen - 1;
-        //120  12 13 14 15
-        strvalue = strvalue.substr(0,startidx) + value_str + strvalue.substr(endidx + 1);
+        // 120  12 13 14 15
+        strvalue = strvalue.substr(0, startidx) + value_str + strvalue.substr(endidx + 1);
         // cout<<"value is "<<strvalue<<endl;
-        for(int i = 0; i < Signal->byte_len; i++)
+        for (int i = 0; i < Signal->byte_len; i++)
         {
             string data_temp = strvalue.substr(i * 8, 8);
             reverse(data_temp.begin(), data_temp.end());
-            data[Signal->start_byte+ i] = (uint8_t)strtoul(data_temp.c_str(), NULL, 2);
+            data[Signal->start_byte + i] = (uint8_t)strtoul(data_temp.c_str(), NULL, 2);
         }
     }
     else
     {
-        for(int i = Signal->start_byte; i < Signal->start_byte + Signal->byte_len; i++)
+        for (int i = Signal->start_byte; i < Signal->start_byte + Signal->byte_len; i++)
         {
-            
-            if(data[i]>=0x80)
+
+            if (data[i] >= 0x80)
             {
-                bitset<8>temp(data[i]);
-                
+                bitset<8> temp(data[i]);
+
                 strvalue += temp.to_string();
             }
             else
             {
-                bitset<8>temp((data[i] | 0x80));
+                bitset<8> temp((data[i] | 0x80));
                 string tempstr = temp.to_string();
                 tempstr[0] = '0';
-                
+
                 strvalue += tempstr;
             }
         }
-        int startidx = ((Signal->start_bit/8 + 1)*8 - 1) - (Signal->start_bit%8);
+        int startidx = ((Signal->start_bit / 8 + 1) * 8 - 1) - (Signal->start_bit % 8);
         int endidx = startidx + Signal->bitlen - 1;
-        strvalue = strvalue.substr(0,startidx) + value_str + strvalue.substr(endidx + 1);
+        strvalue = strvalue.substr(0, startidx) + value_str + strvalue.substr(endidx + 1);
         // cout<<"value is "<<strvalue<<endl;
-        for(int i = 0; i < Signal->byte_len; i++)
+        for (int i = 0; i < Signal->byte_len; i++)
         {
-            data[Signal->start_byte+ i ] = (uint8_t)strtol(strvalue.substr(i*8,8).c_str(),NULL,2);
+            data[Signal->start_byte + i] = (uint8_t)strtol(strvalue.substr(i * 8, 8).c_str(), NULL, 2);
         }
     }
-
 }

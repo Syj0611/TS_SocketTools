@@ -26,6 +26,7 @@
 #include "TSCAN.hpp"
 #include "TSMSGStruct.h"
 #include "ASCWriteDef.hpp"
+#include <sys/time.h>
 
 #define MaxCount 12
 #define MaxMsgCount 124
@@ -741,7 +742,6 @@ void __stdcall OnFlexray(size_t *obj, const PLibFlexRay AData)
                         u8 repCycle = (u8)((it->first >> 32) & 0xff);
                         if (AData->FSlotId == Fslotid && AData->FCycleNumber % repCycle == baseCycle && it->second.e2e_list.size() != 0)
                         {
-
                             tsflexray_transmit_async((size_t)obj, &it->second.e2e_list[0][0].AMsg);
                             // printf("obj = %ld HandleList[0] = %ld  \r\n",obj,HandleList[0]);
                         }
@@ -908,6 +908,19 @@ string get_time(const char *hwindex)
     sprintf(NowTime, "%d-%02d-%02d_%02d_%02d_%02d_%s.asc", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, hwindex);
     return NowTime;
 }
+void print_sys_time()
+{
+    // 获取系统时间戳
+    char NowTime[50] = {0};
+    time_t timeReal;
+    time(&timeReal);
+    timeReal = timeReal + 8 * 3600;
+    tm *t = gmtime(&timeReal);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    sprintf(NowTime, "%d%02d%02d%02d%02d%02d.%06ld", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, tv.tv_usec);
+    std::cout << NowTime << std::endl;
+}
 int addrlen = sizeof(sockaddr_in);
 
 void *receiveData(void *server_fd)
@@ -1072,24 +1085,6 @@ void *receiveData(void *server_fd)
                     tscan_delete_cyclic_msg_canfd(HandleList[AMsg.HWIdx], &AMsg.AMsg);
                 }
             }
-            // else if(AMsg.CyclcTime == -3)
-            // {
-            //     it = MappingTable[AMsg.HWIdx][AMsg.AMsg.FIdxChn][1][0].begin();
-            //     for (int idx = 0;it!=MappingTable[AMsg.HWIdx][AMsg.AMsg.FIdxChn][1][0].end();it++,idx++)
-            //     {
-            //         AMsg.AMsg.FIdentifier = (it->first>>32)&0XFFFFFFFF;
-            //         s32 len = (it->first>>24)&0XFF;
-            //         AMsg.AMsg.FDLC = get_reallen(len);
-            //         u8 isfd = (it->first>>2)&0X1;
-            //         u8 isbrs = (it->first>>1)&0X1;
-            //         u8 isstd = (it->first)&0X1;
-            //         u16 Cycletime = (it->first>>8)&0XFFFF;
-            //         AMsg.AMsg.SetIsFD((isfd==1));
-            //         AMsg.AMsg.SetStd(isstd==1);
-            //         AMsg.AMsg.SetIsBRS(isbrs ==1);
-            //         tscan_add_cyclic_msg_canfd(HandleList[AMsg.HWIdx],&AMsg.AMsg,Cycletime*1000);
-            //     }
-            // }
             else
             {
                 tscan_add_cyclic_msg_canfd(HandleList[AMsg.HWIdx], &AMsg.AMsg, AMsg.CyclcTime * 1000);
@@ -1098,7 +1093,7 @@ void *receiveData(void *server_fd)
     }
 }
 
-// 将ini里的配置发送
+// 将ini里的唤醒帧发送
 void config_wake_bus(vector<map<uint32_t, map<uint32_t, vector<map<uint64_t, frame_data>>>>> MappingTable)
 {
     // MappingTable[i][chnidx][bustype][0]
@@ -1108,8 +1103,8 @@ void config_wake_bus(vector<map<uint32_t, map<uint32_t, vector<map<uint64_t, fra
         {
             if (MappingTable[i][chnidx][1].size() != 0)
             {
-                wake_canbus(HandleList[i],chnidx, MappingTable[i][chnidx][1][0], OnPreCAN);
-            }     
+                wake_canbus(HandleList[i], chnidx, MappingTable[i][chnidx][1][0], OnPreCAN);
+            }
         }
     }
 }
@@ -1176,8 +1171,9 @@ int main(int argc, char *argv[])
             // cout << "hw open error" << endl;
             return -5;
         }
+        print_sys_time();
         config_wake_bus(MappingTable);
-        usleep(WakeTime*1000);
+        usleep(WakeTime * 1000);
         config_bus(MappingTable);
     }
     else
@@ -1208,7 +1204,6 @@ int main(int argc, char *argv[])
                 {
                     AFRMsg.HWIdx = i;
                     AFRMsg.AMsg = AMsg[0];
-
                     udp_send_socket(SocketServer, (char *)(&AFRMsg), sizeof(TLibFlexRayHW), (sockaddr *)&dstaddr);
                     if (ISSaveBLF)
                     {
@@ -1237,6 +1232,7 @@ int main(int argc, char *argv[])
                 ACANMSG.AMsg = ACANFDMsg[0];
                 ACANMSG.LogFlag = 0;
                 udp_send_socket(SocketServer, (char *)(&ACANMSG), sizeof(TLibCANFDHW), (sockaddr *)&dstaddr);
+
                 if (ISSaveBLF)
                 {
                     ISFILE = access(log_name.c_str(), F_OK);
@@ -1258,21 +1254,5 @@ int main(int argc, char *argv[])
                 usleep(1);
         }
     }
-    // 测试代码
-    //  while (1)
-    //  {
-    //     char a = (char) getchar();
-    //     if(a =='1')
-    //     {
-    //      TLibCANFD f0 ;
-    //      memset(&f0,0,sizeof(TLibCANFD));
-    //      f0.FIdentifier = 0x123;
-    //      f0.FDLC = 8;
-    //      f0.FFDProperties =0;
-    //      f0.FProperties =1;
-    //      tscan_transmit_canfd_async(HandleList[0],&f0);
-    //     }
-    //  }
-
     return 0;
 }
